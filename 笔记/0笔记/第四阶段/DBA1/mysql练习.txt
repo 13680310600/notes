@@ -1,0 +1,224 @@
++++++++++++++++++++++++++++++++++++++++++++++++++++
+表基本操作练习题
+1 复制user表的所有记录到teadb库的teacher表里
+	create table teacher select * from db3.usertab;	
+	#表中没有了旧表的primary key、Extra（auto_increment）等属性。
+    ·teacher表结构和uesr表一样时：
+	insert into teadb.teacher select * from db3.usertab;
+  只复制user表的表结构给新teadb库的tea2表
+	create table tea2 like db3.usertab;
+
+2 查看teadb库的tea2表的表结构，并删除 id 字段
+	alter table tea2 drop column id;
+
+3 把/etc/passwd文件的内容保存到teadb库的tea2表里
+	load data infile "/mysqldata/passwd" into table tea2
+    	-> fields terminated by ":"
+    	-> lines terminated by "\n";
+
+ 
+对teadb库的tea2表执行如下操作：
+4 把name字段设置为index字段
+	create index defualt on tea2(username);	
+	#创建  index(普通索引)  defualt(索引名字)  on  表名（字段名）； 
+
+
+5 添加记录编号字段id  在所有字段上方，字段值可以自动增长。
+	alter table tea2 add id int(3) primary key auto_increment first;
+
+
+6 在name字段下方添加s_year字段 存放出生年份 默认值是1990
+	alter table tea2 add s_year int(5) default 1990 after username;
+
+
+7 在name字段下方添加字段名sex 字段值只能是gril 或boy 默认值是 boy
+	alter table tea2 add sex enum("gril","boy") not null default "boy" after username;
+
+
+8 在sex字段下方添加 age字段  存放年龄 不允许输入负数。默认值 是 21
+	alter table tea2 add age int(3) unsigned zerofill default 21 after sex;
+
+
+9 把id字段值是10到50之间的用户的性别修改为 girl
+	update tea2 set sex="gril" where id between 10 and 50;
+
+
+
+10 统计性别是girl的用户有多少个。
+	select count(*) from tea2 where sex="gril";
+
+
+
+12 查看性别是girl用户里 uid号 最大的用户名 叫什么。
+	select username from tea2 where uid=(select max(uid) from tea2 where sex="gril");
+  ***	命令嵌套（命令）
+
+
+13 添加一条新记录只给name、uid 字段赋值 值为rtestd  1000
+	insert into tea2(username,uid) values("rtestd",1000);
+
+   添加一条新记录只给name、uid 字段赋值 值为rtest2d   2000
+	insert into tea2(username,uid) values("rtest2d",2000);
+
+
+14 显示uid 是四位数的用户的用户名和uid值。
+	select username,uid from tea2 where uid regexp '^....$';
+
+
+
+15 显示名字是以字母r 开头 且是以字母d结尾的用户名和uid。 
+	select username,uid from tea2 where username regexp '^r.*d$';	
+
+
+16  查看是否有 名字以字母a开头 并且是 以字母c结尾的用户。 
+	select username from tea2 where username regexp '^a.*c$';
+
+
+8  把gid  在100到500间用户的家目录修改为/root
+	update tea2 set homedir="/root" where gid between 100 and 500;
+
+
+
+9  把用户是  root 、 bin 、  sync 用户的shell 修改为  /sbin/nologin
+	update tea2 set shell="/sbin/nologin" where username in ("root","bin","sync");
+
+
+10   查看  gid 小于10的用户 都使用那些shell
+	select shell from tea2 where gid<10 group by shell;
+	# group by shell  给字段shell分组 相同的为一组显示一次
+
+
+12   删除  名字以字母d开头的用户。
+	delete from tea2 where username like 'd%';
+
+
+13   查询  gid 最大的前5个用户 使用的 shell
+	select shell from tea2 order by gid desc limit 0,5;
+	# order by gid desc 给gid 设置为降序排列
+	# limit 0,5 限制显示从第一行开始显示5行
+	
+
+
+14   查看那些用户没有家目录
+	select username from tea2 where homedir is null;
+
+
+
+15  把gid号最小的前5个用户信息保存到/mybak/min5.txt文件里。 
+	select * from tea2 where gid is not null order by gid  limit 0,5 
+	-> into outfile "/mysqldata/min5.txt";
+	system cp /mysqldata/min5.txt /mybak/
+
+    使用useradd 命令添加登录系统的用户 名为lucy 
+	system useradd lucy;
+
+ 
+16  把lucy用户的信息 添加到teacher表里
+	
+
+
+17  删除表中的 comment 字段 
+	alter table tea2 drop comment;
+
+
+18  设置表中所有字段值不允许为空
+	alter table tea2 modify id int(3) not null;
+	#一个一个字段设置，要把 字段名 源类型 都加上去；
+
+
+19  删除root 用户家目录字段的值
+	update tea2 set homedir='' where username="root";
+
+
+20  显示 gid 大于500的用户的用户名 家目录和使用的shell
+	select username,homedir,shell from tea2 where gid>500;
+
+
+21  删除uid大于100的用户记录
+	delete from tea2 where uid>100;
+
+
+22  显示uid号在10到30区间的用户有多少个。
+	select count(*) from tea2 where uid between 10 and 30;
+
+
+23  显示uid号是100以内的用户使用shell的类型。
+	select shell from tea2 where uid<100 group by shell;
+
+
+24  显示uid号最小的前10个用户的信息。
+	select * from tea2 order by uid limit 0,10;
+	
+
+25  显示表中第10条到第15条记录
+	select * from tea2 limit 9,5;
+
+
+
+26  显示uid号小于50且名字里有字母a  用户的详细信息
+	select * from tea2 where uid<50 and username regexp 'a';
+
+
+27  只显示用户 root   bin   daemon  3个用户的详细信息。
+	select * from tea2 where username in ("root","bin","daemon");
+
+
+28  显示除root用户之外所有用户的详细信息。
+	select * from tea2 where username not in ("root");
+
+
+29  统计username 字段有多少条记录
+	select count(username) from tea2;
+
+
+30  显示名字里含字母c  用户的详细信息
+	select * from tea2 where username regexp 'c';
+
+
+
+   
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+31  在sex字段下方添加名为pay的字段，用来存储工资，默认值    是5000.00
+	alter table tea2 add pay float(8,2) unsigned zerofill default 5000.00 after sex;
+
+
+32  把所有女孩的工资修改为10000
+	update tea2 set pay=10000 where sex="gril";
+
+
+33  把root用户的工资修改为30000
+	update tea2 set pay=30000 where sex="root";
+
+
+34  查看所有用户的名字和工资
+	select username,pay from tea2;
+
+
+35  查看工资字段的平均值
+	select avg(pay) from tea2;
+
+
+36  查看工资字段值小于平均工资的用户 是谁。
+	select username from tea2 where pay<(select avg(pay) from tea2);
+
+      查看女生里谁的uid号最大
+	select username from tea2 where sex="gril" and uid=(select max(uid) from tea2);
+
+38  查看bin用户的uid gid 字段的值 及 这2个字段相加的和 
+	select uid,gid,uid+gid jh from tea2 where username="bin";
+
+ 
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+39  把teacher表中前7条记录中如下字段的值保存到当前库下 userone表里
+    id 、 username 、 sex 
+	create table userone select id,username,sex from teadb.teacher limit 0,7;
+
+
+40  把teacher表中前5条记录中如下字段的值保存到当前库下 usertwo表里
+    id 、 username 、 sex 、shell
+	create table usertwo select id,username,sex,shell from teadb.teacher limit 0,5;
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

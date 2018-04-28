@@ -1,0 +1,1164 @@
+
+
+4月23号 day01
+
+
+		   				·mysql数据库管理
+    **	生产环境中，数据服务和网站服务一起只用，构建网站运行平台 （Linux:LNMP、LAMP  Windows:WNMP、WAMP）
+
+
+一、搭建数据库服务器（192.168.4.51）
+
+·相关概念问题：
+	·数据库？：存储数据的仓库
+	·数据库那些公司在使用？：购物网站、游戏网站、金融网站、
+	·数据服务存储的是什么数据？：账号信息、对应的数据信息
+
+·提供数据库服务的软件有哪些？
+	·开源（一般是普通企业）：mysql、 mongodb、 redis
+	·商业（一般是国家机构）：oracle、 db2、 SQL SERVER(微软，不跨平台)
+
+·软件是否跨平台？：Linux、Unix、Windows
+
+·软件包的来源：官网下载（oracle官网）、使用操作系统安装光盘自带软件包（版本较低）
+
+·mysql软件介绍？：（mariadb == mysql）在一台服务器上只能二选一		
+
+ -关系型数据软件：
+	1.按一定的组织结构存储数据、并且数据和数据之间可以互相关联操作
+	2.跨平台 Linux  Uinx  Windows
+	3.可移植性强
+	4.支持多种语言 Python/Java/Perl/PHP
+	5.mysql软件包的封包类型： rpm包、 源码包（可以自定义安装信息）
+ -非关系型数据库软件：（NoSQL） mongodb、redis、memcached	(按键值对存储方式 key=值)
+
+
+
+	1）.装包
+	 1.1：删除系统自带的mariadb mysql数据库软件
+	   rpm -qa | grep -i mariadb
+	   systemctl stop mariadb
+	   rpm -e --nodeps mariadb-server mariadb		#忽略依赖包卸载	
+	   rm -rf /etc/my.cnf
+	   rm -rf /var/lib/mysql
+	 1.2：安装mysql软件
+	   tar -xf mysql-5.7.17-1.el7.x86_64.rpm-bundle.tar
+	   ls *.rpm
+	   rm -rf mysql-community-server-minimal-5.7.17-1.el7.x86_64.rpm	#删除最小安装
+	   rpm -Uvh mysql-community-*.rpm						#缺依赖包
+	   yum -y install perl-JSON							#安装依赖包
+	   rpm -Uvh mysql-community-*.rpm						#安装mysql软件
+	   rpm -qa | grep -i mysql
+
+
+	2）.修改配置文件 （主配置文件：/etc/my.cnf,数据库目录：/var/lib/mysql）
+	    不用修改，按默认配置运行即可
+
+	3）.启动服务(服务名：mysqld)
+	  systemctl start mysqld.service
+	  systemctl enable mysqld.service
+
+	4）.查看服务进程和端口号
+	  ps -C mysqld				#查进程
+	  ss -nutlp | grep mysqld		#查端口
+
+
+
+
+二、数据库服务的基本使用
+	
+	2.1 使用初始密码在本机连接数据库服务(不改密码不能操作数据库)
+
+		mysql  -h数据库服务器ip地址   -u用户名   -p密码    【库名】
+		mysql服务的日志文件：/var/log/mysqld.log			#首次登陆的初始密码在这里
+		grep password /var/log/mysqld.log	#查看初始密码,在root@localhost后面的就是
+
+		mysql -hlocalhost -uroot -p'y:6qoenfyqaN'	#用-h本机，-p查到的初始密码 登陆mysql
+		mysql> help						#查看mysql的快捷键
+
+
+	2.2 重置本机连接密码
+		
+		mysql> alter user root@"localhost" identified by "mima";	 #不能改，要设置策略
+临时改策略：		set global validate_password_policy=0;	#修改验证策略，只检查密码长度
+			set global validate_password_length=6;	#修改密码长度不能小于6个字符
+			alter user root@"localhost" identified by "123456"; #改root在本机登陆的密码
+永久改密码策略： vim /etc/my.cnf
+		   [mysqld]
+		   validate_password_policy=0
+		   validate_password_length=6
+		   :wq	
+		 systemctl restart mysqld.service
+
+
+	2.3 把数据存储到数据库服务器上的过程
+	   ·连接数据库服务器（命令行  API 图形管理工具）
+	   ·选择库（存放数据的文件夹）
+	   ·选择表（文件）
+	   ·插入记录（行）
+	   ·断开连接
+
+
+	2.5 sql命令使用规则
+		a).操作命令不区分大小写（密码、变量值除外）
+		b).每条SQL指令以；结束
+
+
+	2.4 sql命令分类
+		DDL
+		DML
+		DTL
+		DCL
+
+	2.6 管理数据库的sql命令
+	   ·查看库：mysql>	show databases;
+	   ·创建库：mysql>	create database gamedb(库名);
+	   ·切换库：mysql>	drop database gamedb(库名);
+	   ·删除库：mysql>	use gamedb(库名);
+	   ·显示当前所在的库：  mysql>   select database();		
+
+	***  建完的库在数据库目录下有对应的文件夹：ls /var/lib/mysql/
+
+	2.7 管理表的sql命令
+	   ·查看表：mysql>	show tables;
+	   ·创建表：mysql>	mysql> create table gamedb.stuinfo(
+				    -> name char(10),
+				    -> addr char(20)
+			a#	    -> );
+		库名.表名（字段名 类型(宽度) 约束条件，
+			   字段名 类型(宽度) 约束条件，
+			   ..........   ............）；
+
+	   ·删除表：mysql>	drop table gamedb.stuinfo;
+	   ·查看表记录：mysql>	select *(所有列) from gamedb.stuinfo(库.表名);
+	   ·查看表结构：mysql>	desc gamedb.stuinfo;
+
+	*** 所建的表会在所在库的文件夹下生成对应的同名文件：ls /var/lib/mysql/gamedb/
+
+
+	2.8 管理记录的sql命令
+	  ·查看已有记录	：mysql>	select * from gamedb.stuinfo;
+
+	  ·插入已有记录 ：mysql>	insert into gamedb.stuinfo values("tom","guangzhou");
+					insert into 库名.表名 values(字段值列表);
+
+	  ·修改已有记录 ：mysql>	update 库名.表名 set 字段名=值 where 条件；
+					update gamedb.stuinfo set addr="guangzhou" where name="tom";
+
+	  ·删除所有记录 ：mysql>	delete from gamedb.stuinfo;(库名.表名)
+
+
+
+
+
+三、mysql数据类型
+
+
+3.1 数值类型 （成绩 年龄 工资）		#每种类型的存储数据范围都是固定的
+
+  *** ·unsigned 使用数值类型无符号的范围
+  *** ·那种数值类型的取值范围都有两个：
+		有符号范围： -...~+...	(可以取负值)
+		无符号范围： 0～...	(从0开始取值)
+
+    ·整数类型：只能存整数		# 存小数会四舍五入变为整数： 4.5=5；4.2=4；
+	微小整形：tinyint  unsigned()
+	小整形  ：smallint
+	中整形  ：mediumint
+	大整形  ：int
+	极大整形：bigint
+  ·案例：
+	create database studb;
+	use studb;
+	create table t1(level smallint,age tinyint);
+	insert into t1 values(1024,19),(9,21);
+	insert into t1 values(123456,91);	#报错 level的值超出范围
+	insert into t1 values(21.9,4.2);	#存进去的值为 （22，4）
+	select * from t1;
+
+	create table t2(level int unsigned,
+			   age tinyint unsigned);	
+	insert into t2 values(-201,-1);			#报错，赋值范围超出了
+	insert into t2 values(1212,0);
+	select * from t2;
+
+    ·浮点型  ：能存小数
+	单精度浮点数：float(M,N)
+	双精度浮点数：double(M,N)
+	M 设置总位数
+	N 设置小数位位数
+
+	 正数.小数	总位数	整数位  小数位
+	 18088.88	  7	   5	  2	
+   ·案例：
+	create table t3(play float(6,2));
+	insert into t3 values(1000.22),(-9999.99);
+	insert into t3 values(22222);			  #报错，整数位超出范围 总数6 小数2 整数4位
+	select * from t3;
+
+
+
+3.2 字符类型 （商品名称 籍贯 姓名 生产厂家）
+
+	char(255)	  ：固定长度字符类型   ***  定义char(5)就必须存5个字符串，如果不够5个会自动加空格
+	varchar(65532) ：变长字符类型
+    大文本类型：(音频、视频、图片) #存放在硬盘，数据库只放这些大文件的路径信息	
+	blob
+	text
+   ·案例：
+	create table t5(name char(5),addrhome char(30),email varchar(25));
+	insert into t5 values("ldj","jieyang","386578338@qq.com");
+	select * from t5;
+
+
+3.3 日期时间类型（注册时间 约会时间 开会时间 入职时间）
+
+	年  ： year	YYYY		2018		#年
+	日期： date	YYYYMMDD	20180423	#年月日
+	时间： time	HHMMSS	161928	#时分秒
+   ·案例：
+	create table t6(name char(15),			#姓名
+			age tinyint unsigned,		#年龄
+			play float(7,2),			#工资
+			email varchar(30),			#邮箱
+			birthday date,			#日期
+			up_time time,			#时间
+			start_year year,			#年
+			party datetime);			#日期时间
+	insert into t6 values("林德佳",22,26800,
+				   "ldj@qq.com",20181001,083000,1996,20180501220000);
+	select * from t6;	
+
+
+	日期时间类型(范围不一样)： datetime(没赋值时，默认位NULL)
+		      	  timestamp(没赋值时，默认以当前系统时间赋值)
+	  		     YYYYMMDDHHMMSS   20180423161928
+   ·案例：
+	create table t7(meetting datetime,party timestamp);
+	insert into t7 values(now(),now());			#select * from t7; 都有赋值
+	insert into t7(party) values(20161123184518);	#meetting 没赋值位NULL
+	insert into t7(meetting) values(20201123180000);	#都有值，party的值为当前系统时间
+
+
+
+   **	·获取系统日期时间给对应的日期时间字段类型赋值
+  ***	·获取日期时间函数：
+	 select  now()： 获取当前系统时间			
+	 select  year(日期时间)：获取指定时间中的年		#year(now()); 或year(20190111);
+	 select  month()：获取指定时间中的月		#month(now());获取系统时间中的月
+	 select  day():获取指定时间中的日期
+	 select  date():获取指定时间中的 年月日
+	 select  time():获取指定时间中的 时分秒
+   ·案例：
+	insert into t6 values("zgx",23,35541,"做贡献@qq.com",
+					date(now()),time(now()),
+					year(now()),now());	
+	select * from t6;	
+	insert into t6(name,start_year) values("tom","2000");
+
+
+   ** 可以使用2位数字给year类型的字段赋值，规律如下：
+	01-69 ： 20xx
+	70-99	: 20xx
+
+
+
+3.4 枚举类型 （插入记录时 记录的值 在列举的范围内选择 ：『性别  爱好 专业』）
+
+	enum(值列表)	： 单选
+	set(值列表)	： 多选
+
+    ·案例：
+	create table t8(name char(15),
+			sex enum("boy","girl","baomi"),
+			likes set("girl","game","money","eat"));
+	desc t8;
+	insert into t8 values("ldj","boy","game,girl,money");
+	insert into t8 values("zgx",2,"game,girl,money");		#enum中插入2 为第二个选项
+
+
+
+
+
+
+_____________________________________________________________________________
+——————————————————————————————————————————————————————————
+
+
+4月24号   day02
+
+mysql键值：创建  删除  查看  使用规则
+
+·普通索引index 
+   创建： create index 索引名 on 表(字段)；
+
+·主键
+   创建： alter table 表  add id int(2) primary key auto_increment first;
+
+·外键
+   创建： create table 表(
+	  字段列表,
+	  foreign key(字段名) references 表名(字段名)
+	  on update cascade on delete cascade
+	  )engine=innodb;
+
+
+
+
+
+_____________________________________________________________________________
+——————————————————————————————————————————————————————————
+
+4月25号   day03
+
+
+
+一、Mysql存储引擎
+    1.1 存储引擎介绍：
+	是mysql数据库软件自带的功能程序，
+	每种存储引擎的功能和数据存储方式也不同，
+	存储引擎就是处理表的处理器。（管理表）
+
+    1.2 查看当前数据库服务支持的存储引擎有那些？
+	mysql> show engines;
+	InnoDB	DEFAULT		#查看到默认的引擎位InnoDB	
+
+
+    1.3 查看已有的表使用的存储引擎
+	mysql> show create table 表名;		#查看建表过程
+
+    1.4 修改数据库服务默认使用的存储引擎
+	vim /etc/my.cnf
+	[mysqld]
+	default-storage-engine=myisam		#设置默认存储引擎为myisam
+	:wq
+	systemctl restart mysqld.service
+
+    1.5 修改表使用的存储引擎，或 建表时指定使用的存储引擎
+	mysql> alter table 表 engine=存储引擎名;			#修改表存储引擎
+	mysql> create table 表(字段列表)engie=存储引擎名；	#创建表时指定存储引擎
+
+    1.6 常用存储引擎的特点
+	·innodb特点：	支持事务 和 事物回滚 、 行级锁 、外键
+	    存储方式：一个表对应2个存储文件	create table t2(age int)engine=innodb;
+			表名.frm(表结构)
+			表名.ibd(数据和索引)
+
+	·myisam特点：支持事务、事务回滚、外键、支持表级锁
+	    存储方式：一个表对应3个存储文件	create table t2(age int)engine=myisam;
+	    		表名.frm(表结构)
+			表名.MYD(数据)
+			表名.MYI(索引)
+
+	·事务：对数据库服务的访问过程（连接数据库服务器——>操作数据——>断开连接）。
+    	·事务回滚：在事务执行过程中任何一步操作失败，都会恢复之前的所有操作。
+	 	·mysql数据库服务使用事务日志文件记录，对innodb存储引擎表执行的sql操作。
+	 	·cd /var/lib/mysql		#事务记录日志存放路径
+		   ib_logfile0 ---|
+				       | —————>记录SQL命令
+		   ib_logfile1 ---|
+		   ibdata1---->数据源（sql命令执行后产生的数据信息）
+
+    	·锁粒度：
+      		·行级锁(innodb)：只给表中当前被操作的行加锁
+      		·表级锁(myisam)：给整张表加锁
+
+    	·锁的作用：解决对表的并发访问冲突问题。
+    	·锁类型：
+		读锁：共享锁（同一时间可以多人访问）
+		写锁：排他锁（同一时间只能一人执行）
+    
+
+
+    1.7 建表时如何决定使用那种存储引擎
+	被访问时执行写操作多的表，适合innodb存储引擎，并发访问量大。
+	执行查操作多的表适合使用myisam存储引擎，可以节省系统资源。	
+
+    1.8 工作中怎么决定数据库服务器使用那种存储引擎
+	
+
+
+
+二、数据导入导出（批量对数据做操作）
+    2.1 数据导入的命令格式及数据导入时的注意事项
+	数据导入：把系统文件的内容存储到数据服务器的表里。
+
+  **	查看导入文件内容时，默认在系统的什么目录下搜索文件？
+	mysql> show variables like "secure_file_priv";	
+		** 导入的目录就在查到的路径下
+	语法格式：	
+	 load data infile "目录/文件名" into table 库.表 fields terminataed by "列间隔符号" lines terminated by "\n"; 
+	
+    ·例子： 把操作系统已有用户的信息保存到db3库下的user表里
+	1.创建存储数据表
+		create database db3;
+		create table db3.usertab(username char(50),
+						password char(10),
+						uid int(2),
+						gid int(2),
+						comment char(100),
+						homedir char(100),
+						shell char(50),
+						index(username) );
+		desc db3.usertab;
+		select * from db3.usertab;
+
+
+	2.导入数据
+	cp /etc/passwd   /var/lib/mysql-files/(导入时的默认目录路径)
+
+	mysql>  load data infile "/var/lib/mysql-files/passwd" 
+		  into table db3.usertab
+		  fields terminated by ":"		#以：符号为列的分隔符
+		  lines terminated by "\n";		#以 \n 为每一行的分隔符
+
+	mysql>  alter table usertab add id int(2) primary key auto_increment first;
+	mysql>  select * from usertab;
+	mysql>  select * from usertab  where id=20;
+
+·修改导入文件内容时，自定义目录下搜索文件：
+	vim /etc/my.cnf
+	[mysqld]
+	secure_file_priv="/mysqldata"
+	:wq
+	mkdir -p /mysqldata
+	chown mysql  /mysqldata
+	setenforce 0
+	systemctl restart mysqld
+
+  **   在mysql里面执行系统命令： mysql> system  cp /etc/passwd  /mysqldata/
+				  mysql>  system  ls /mysqldata
+
+
+
+
+    2.2 数据导出的命令格式及数据导出时的注意事项
+	数据导出：把表记录存储到系统文件里
+	注意事项：？
+
+	命令格式：
+	sql查询命令： into outfile "目录/文件名(自己定)" [fields terminated by ":"
+		[可选] 					     lines terminated by "\n"];	
+     ·例子：
+	#把usertab表里的内容导出到/mysqldata/aa.txt中
+	mysql>  select * from usertab into outfile "/mysqldata/aa.txt";
+	
+	#把usertab表里的内容导出到/mysqldata/aa.txt中，每一列用：分隔开。
+	mysql>  select * from usertab into outfile "/mysqldata/aa.txt" 
+		  fields terminated by ":";
+
+
+
+
+三、管理表记录（db3.usertab）
+
+   3.1 插入记录：insert into(值要与字段类型和约束条件匹配)
+
+	·插入1条记录给所有字段赋值
+	  mysql>	insert into 库.表  values(字段值列表);
+	  mysql>	insert into db3.usertab values(43,"ldj","x",
+							     1001,1001,"","/home/ldj",
+							     "/sbin/nologin");
+
+	·插入n条记录给所有字段赋值
+	  mysql>	insert into 库.表  values(字段值列表),(字段值列表),···;
+
+
+	·插入1条记录给指定的字段赋值
+	  mysql>	insert into 库.表(字段名列表)  values(字段值列表);
+	  mysql>	insert into db3.usertab(username,homedir,shell)
+					   values("zgx","/home/zgx","/sbin/nologin");
+
+	·插入n条记录给指定的字段赋值
+	  mysql>	insert into 库.表(字段名列表)  values(字段值列表),(字段值列表),···;
+	  mysql>	insert into db3.usertab(username,homedir,shell)
+					   values("zgx2","/home/zgx2","/sbin/nologin"),
+						   ("zgx3","/home/zgx3","/sbin/nologin"),
+						   ("zgx4","/home/zgx4","/sbin/nologin");
+
+
+   3.2 查看记录
+	命令格式： 
+	·select 字段名列表 from 库.表 where 匹配条件；
+		#查看与条件匹配的指定记录字段的值
+	
+	·select 字段名列表  from  库.表；		
+		  	
+	·select 字段名列表  from  库.表  [where 匹配条件]；	#查看表中所有行的所有字段的值
+
+	·select *  from  库.表；			#查看表中所有行的所有字段的值
+	
+
+   3.3 更新记录
+	命令格式：
+	·update 库.表 set 字段名=值,字段名=值 where 匹配条件；
+	  #修改与条件匹配的指定记录字段的值		
+
+	·update 库.表 set 字段名=值,字段名=值；			#修改所有指定记录字段的值
+	 mysql>   update db3.usertab set password="A";	#password所有都改为A
+	
+	 mysql>   update db3.usertab set password="x" where id=1;	#id=1的password为x
+
+
+   3.4 删除记录
+	命令格式：
+	·delete from 库.表  where 匹配条件；
+	  #仅删除与条件匹配的记录		
+	
+	·delete from 库.表；
+	 #删除所有的记录
+
+
+
+
+四、匹配条件（查看 修改 删除记录时可以加条件）
+
+-------------------mysql>   select/update/delete 字段名 from 库.表 where 匹配条件；
+
+	4.1 数值比较：	字段名 符号 数字
+		=  !=  <  <=  >  >=
+	  ·select username from db3.usertab where uid=1001;  #查看那uid=1001的username字段的值
+	  ·select * from db3.usertab where id<=10;		  #查看id<=10的所有记录的值
+
+
+	4.2 字符比较： 字段名 符号 "字符串"
+		=  !=
+	  ·select username,shell from db3.usertab where shell="/bin/bash";
+	  ·select username from db3.usertab where shell!="/bin/bash";
+
+
+	4.3 范围内比较
+		字段名 between 数字1 and 数字2  	#在...之间...
+		字段名 in(值列表)			#在...里
+		字段名 not in(值列表)			#不在...里
+	  ·select username from usertab where uid between 100 and 150;
+		#查看uid在100～150之间的username的值
+	  ·select username,uid from usertab where uid in (100,1,50,7,1001);
+		#查看uid为(100,1,50,7,1001）的username和uid的值
+	  ·select username,uid from usertab where uid not in (1001,1,7,);
+		#查看uid不是为(1,7,1001）的username和uid的值
+	
+
+	4.4 逻辑比较（多个查询条件）
+		逻辑与： and 	  （多个条件同时成立）
+		逻辑或： or 	  （多个条件某一个条件成立就匹配）
+		逻辑非： ! 或 not （取反）	
+	  ·select username,uid from usertab where username="root" and uid=0;	
+		#查看用户名为root且uid=0 
+	  ·select username from usertab where username="root" or uid=0 or shell="/bin/bash";
+		#查看用户名为root或uid=0或shell="/bin/bash" 的用户名 
+
+
+
+	4.5 匹配空 	字段名 is null
+	    匹配非空	字段名 is not null
+	  ·select username,uid,gid  from usertab where uid is null and gid is null;
+		#查看那个用户的uid，gid都为空的
+	  ·select id from usertab where username="ldj" and uid is not null;
+		#查看用户ldj的id的值
+	
+
+
+	4.5 模糊匹配	字段名 like '表达式'；
+		% ：表示零个或多个字符
+		_ ：表任意一个字符
+	  ·select username from usertab where username like '____';
+		#查看所有用户名为4个字符的用户
+	  ·select username from usertab where username like 'a__t';
+		#查看所有以a开头t结尾中间两个任意字符的用户
+	  ·select username from usertab where username like 'a%';
+		#查看用户名以a开头的所有用户
+	  ·select username from usertab where username like '_%_';
+		#查看用户名大于等于2个字符的所有用户
+
+
+
+	4.6 正则匹配	字段名 regexp '正则表达式'；
+		^  $  .  *  []
+	  ·select username from usertab;		#查看所有username的值
+	  ·select username from usertab where username regexp '[0-9]';
+		#查看包含数字的username的值
+	  ·select username from usertab where username regexp '^[0-9]';
+	  ·select username from usertab where username regexp '[0-9]$';
+	  ·select username from usertab where username regexp 'a.*t';
+		#查看username中有
+	  ·select username from usertab where username regexp '^a.*t$';
+		#查看以a开头t结尾的username
+	  ·select username from usertab where username regexp '..';
+		#查2位或2位以上的username
+	  ·select username from usertab where username regexp '^..$';
+		#查3位的用户名
+
+
+
+	4.7 四则运算(select 和 update 操作是可以做数学计算)
+		字段类型必须是数值类型（整形，浮点型）
+		+   -  *  /  %		(uid+gid) as 名  #给uid+gid的值取个名
+
+	  ·select username,uid from usertab where id <=10;
+	  ·update usertab set uid=uid+1 where id <=10;	
+
+	  ·select username,uid,gid,uid+gid as zh from usertab where username="mysql";
+		#查看mysql的 用户名、uid、gid、和(uid+gid)的值as取名位zh 
+	  ·select uid+gid as zh,(uid+gid)/2 as pjz from usertab where username="mysql";
+		#查看mysql的uid+gid的值as取名为zh 和(uid+gid)/2的值as取名为pjz
+	  ·alter table usertab add age tinyint(2) unsigned default 21 after username;
+		#添加age默认为21
+
+
+
+
+	4.8 聚集函数（对字段的值做统计，字段的类型要求是数值类型）
+		count(字段名)统计字段值的个数
+		sum(字段名) 求和
+		max(字段名) 输出字段值的最大值
+		min(字段名) 输出字段值的最小值
+		avg(字段名) 输出字段值的平均值
+	  ·select max(uid) from usertab;		#所有值中的uid最大的 
+	  ·select min(uid) from usertab;
+	  ·select sum(uid) from usertab;
+	  ·select avg(uid) from usertab;
+	  ·select count(id) from usertab;
+	  ·select count(username) from usertab where shell="/sbin/nologin";
+		#统计shell="/sbin/nologin" 的用户的个数	
+
+
+
+
+
+	4.9 查询不显示字段重复值	distinct 字段名
+		
+	  ·select distinct shell from usertab;		#shell字段相同的值 只显示一次
+	  ·select distinct shell from usertab where uid>10 and uid<=100;
+		##shell字段中uid=10～100相同的值 只显示一次
+
+
+ 	
+
+	4.10 查询分组
+		sql查询  group  by 字段名；
+	  ·select shell from usertab where uid>10 and uid<=100 group by shell;
+
+
+
+	4.11 查询排序（按照数值类型的字段排队）
+		sql查询 order by 字段名  asc|desc；	#asc升序（默认），desc降序
+	  ·select username,uid from usertab where uid>10 and uid<=100 order by uid;
+		#按uid排序 默认加排列方式为asc升序
+	  ·select username,uid from usertab where uid>10 and uid<=100 order by uid desc;
+		#按uid排序 desc降序
+
+
+
+
+	4.12 限制查询显示行数（默认显示所有查询的记录）
+		sql查询  limit 数字；			#显示查询结果的前几行		
+		sql查询  limit 数字1,数字2 ；		#显示查询结果指定范围的行
+		  #数字1：起始行，下标0为第一行， 数字2：显示的行数
+
+	  ·select username,uid from usertab where uid<=100 order by uid desc limit 1;
+		#查看查询结果的前1行
+	  ·select username,uid from usertab where uid<=100 order by uid desc limit 2,3;
+	**	#查看查询结果从第3行开始显示3行
+
+ 	  ·select * from usertab;				#显示所有行
+	  ·select * from usertab where id=2 or id=3 ;	#显示id=2和3 的行
+
+
+
+
+
+_____________________________________________________________________________
+——————————————————————————————————————————————————————————
+
+
+4月27号   day04
+
+
+一、多表查询
+
+  1.1 复制表			***	  #复制表时 源表的键值不会复制给新表
+
+***	复制的内容由sql查询结果决定，不会复制源表字段的键值 给 新表
+
+     作用： 备份表 和 快速建表
+
+     命令格式：
+	create teble 库.表  sql查询命令；
+	
+
+     例子：	
+	复制表结构： create table 库.新表  select * from 库.旧表  where 1=2;
+			#查看旧表的时候 条件判断数值1=2不成立，所以查看旧表时 没有数据 只有表结构
+		    create table 库.新表 select name,id 库.旧表  where 1=2;
+			#查看旧表的name和id字段时候 条件判断数值1=2不成立，所以新表只有 name和id字段的结构
+
+	复制表的所有数据：create table 库.新表 select * from 库.旧表；
+	复制表的个别字段数据：create table 库.新表 select name,id from 库.旧表；
+
+
+
+  1.2 where嵌套查询
+
+     定义：把内层的查询结果作为外层的查询条件
+
+     命令格式： select 字段名列表 from 库.表  where 字段a(sql查询结果);
+
+     例子：
+	select name,id from 库a.表a where uid<(select avg(uid) from 库a.表a);
+		#查看同个库里的表uid<uid平均值的id和name
+	select name from 库a.表a where name in (select user from 库b.表b where host="local");
+		#查看库a.表a中的name字段，条件为库b.表b中host=“local”的user的值
+
+
+  1.3 多表查询
+ 
+     命令格式： 
+	select 字段名列表 from 表名列表 where 匹配条件；
+
+     例子：
+	mysql> create database db4;
+	mysql> use db4;
+	mysql> create table t3 select username,uid,shell,homedir from db3.usertab limit 3;
+	mysql> create table t4 select username,uid,gid from db3.usertab limit 5;
+
+	select t3.* from t3,t4 where t3.username=t4.username;
+		#查看 t3表的所有  条件为t3和t4中username相等的值
+
+###	select * from t3,t4; 迪卡尔集（t3列数 * t4列数）
+###	select t3.id,t4.id from t3,t4; 迪卡尔集（t3列数 * t4列数）
+
+
+
+  1.4 连接查询
+
+     左连接查询： select 字段名列表 from 表名A left join 表B on(替代where) 匹配条件；
+		#当匹配条件成立时 ，以左边的表为主显示查询记录
+
+     右连接查询： select 字段名列表 from 表名A right join 表B on(替代where) 匹配条件； 
+		#当匹配条件成立时 ，以右边的表为主显示查询记录
+
+     例子：
+	mysql> create table t5 select username,uid,gid 
+	    -> from db3.usertab where uid>=100 and uid<=500;
+	mysql> create table t6 select username,uid,gid 
+	    -> from db3.usertab where uid>=100 and uid<=500 limit 3;
+	
+	select * from t5 left join t6 on(替代where) t5.uid=t6.uid;
+		#以t5为主显示匹配条件的值，t5值多显示全部
+	select t5.name,t6.name from t5 left join t6 on(替代where) t5.uid=t6.uid;
+		#以t5为主显示匹配条件的值，t5值多显示指定表的字段的全部信息
+	select * from t5 right join t6 on(替代where) t5.uid=t6.uid;
+		#以t6为主显示匹配条件的值，t6值少显示相同的
+
+
+
+
+二、安装数据库图形管理工具	（主要讲   phpmyadmin）
+
+     2.1 管理数据库由服务器的方式： 
+	命令行工具（mysql）
+	图形工具（应用程序软件提供的、web页面）
+
+     2.2 在数据库服务器上安装图形管理工具phpmyadmin
+	# phpMyAdmin-2.11.11-all-languages.tar.gz
+	a1).准备软件的运行环境 lamp/lnmp
+		rpm -q httpd php php-mysql		#查这些软件有没有
+		systemctl restart httpd.service 	#启服务
+		systemctl enable httpd.service
+
+	a2).测试运行环境
+		vim /var/www/html/test.php
+		<?php
+		$x=mysql_connect("localhost","root","123456");
+		if($x){ echo "ok"; }else{ echo "no"; };
+		?>
+		:wq
+		yum -y install elinks.x86_64			#elinks命令行的浏览器吧?
+		elinks --dump http://localhost/test.php	#用elinks访问 test.php
+
+
+	b).安装软件phpMyAdmin-2.11.11-all-languages.tar.gz
+		tar -zxf phpMyAdmin-2.11.11-all-languages.tar.gz -C /var/www/html/
+		cd /var/www/html/
+		mv phpMyAdmin-2.11.11-all-languages/ phpmyadmin
+
+
+	c).修改软件的配置文件定义管理的数据库服务器
+		cd /var/www/html/phpmyadmin
+		cp config.sample.inc.php config.inc.php
+		vim config.inc.php
+		17  $cfg['blowfish_secret'] = 'ldj123';
+		31  $cfg['Servers'][$i]['host']='localhost';
+
+
+	d).在客户端访问软件 管理数据库服务器
+		打开浏览器输入url地址 访问软件 http：//192.168.4.51/phpmyadmin
+			用户名 root
+			密 码  123456
+
+
+
+三、用户授权与权限撤销
+
+     3.0 数据库管理员密码管理
+	a).恢复数据库管理员本机登陆密码	#重置管理员密码
+		systemctl stop mysqld.service
+		vim /etc/my.cnf
+		[mysqld]
+		skip-grant-tables			#跳过授权表
+		#validate_password_policy=0
+		#validate_password_length=6
+		:wq
+		systemctl start mysqld.service
+
+		mysql	   #做完上面的步骤就可以免密进入数据库
+		mysql>  select host,user,authentication_string from mysql.user;
+		mysql>  update mysql.user set authentication_string=password("abc123")
+		    ->  where host="localhost" and user="root";
+		mysql>  flush privileges;	#让上面的操作生效
+		mysql>  quit
+
+		systemctl stop mysqld.service
+		vim /etc/my.cnf
+		[mysqld]
+		#skip-grant-tables
+		validate_password_policy=0
+		validate_password_length=6
+		:wq
+		systemctl start mysqld.service
+		mysql -uroot -pabc123
+
+
+	b).修改数据库管理员本机登陆的密码(只有操作系统管理员才有权限)
+		mysqladmin -hlocalhost -uroot -p password "新密码"		#需要知道当前登陆密码
+		Enter password: 当前登陆密码
+	  
+	  
+
+     3.1 什么是用户授权：在数据库服务器上添加连接用户，添加是可以设置用户的访问权限和连接的密码。
+			 默认只允许数据库管理员root用户在本机登陆。
+			 默认只有数据库管理员root用户在本机登陆才有授权权限。
+
+
+     3.2 用户授权命令的语法格式
+	mysql>  grant 权限列表 on 数据库名 to 用户名@"客户端地址" identified by "密码"  
+	    ->  [with grant option];(允许用户有授权权限)
+   **	·数据库名的表示方式：
+		*.* 	  ：所有库所有表
+		库名.*	  ：某库的权限 
+		库名.表名 ：某表
+   **	·用户名的表示方式：连接数据库服务器时使用的名字，名字存储在mysql.user表里，授权时自定义名，具有标识性
+   **	·客户端地址的表示方式：
+		%  ：所有地址
+		192.168.4.254  ：指定ip地址
+		192.168.4.%    ：网段
+		pc254.tedu.cn :主机名（要求数据库服务器可以解析主机名）
+		%.tedu.cn	:域名（要求数据库服务器可以解析域名内的主机名）
+
+	·例子：  允许客户端254主机可以使用root连接，连接密码是123456，
+		连接后的访问权限是所有库和表有完全访问权限，且有授权权限。
+	   mysql -uroot -p123456		#在192.168.4.51机子上操作
+	   mysql>  grant all on *.* to root@"192.168.4.254"  identified by "123456"
+	       ->  with grant option;
+	
+	   客户端访问： mysql -h192.168.4.51 -uroot -p123456		#在192.168.4.254操作	
+##########################
+
+  **** 	显示连接的用户名和客户端地址：	
+	***	mysql>   select user();	
+
+  **** 	查看当前登陆的数据库服务器主机名：
+	***	mysql>   select @@hostname;
+
+  **** 	显示登陆用户自己的访问权限：
+	***	mysql>   show grants;
+
+  **** 	查看当前已有的授权用户
+	***	mysql>   select user,host from mysql.user;
+
+  **** 	查看已有授权用户的访问权限
+	***	mysql>   show grants for 用户名@"客户端地址"；
+
+  **** 	删除授权用户
+	***	mysql>   drop user root@"192.168.4.254";
+
+  ****  授权用户连接数据库服务器修改自己的登陆密码
+	***	mysql>   set password=password("密码");
+
+  **** 	数据库管理员修改授权用户的登陆密码
+	***	mysql>   set password for 用户名@"客户端地址"=password("密码");
+
+##########################
+
+
+
+     3.3 撤销用户权限命令的语法格式
+	mysql>  revoke 权限列表 on 数据库名 from 用户名@"客户端地址"；
+  **	·权限列表的表示方式：
+		select,insert,delete,update(字段1,字段2)	#update没加字段名，可以改全部	
+#########################
+  ****	撤销的时用户的访问权限
+  ****  用户对数据库有过授权才可以撤销
+#########################
+
+	·例子1：撤销254主机使用root用户连接时，授权权限
+	    mysql>  revoke grant option on *.* from 'root'@'192.168.4.254‘;
+
+	·例子2：通过修改表记录的方式撤销用户的访问权限
+	    mysql>  update mysql.user set Select_priv="N" 
+	        ->  where user='root' and host='192.168.4.254';
+	    mysql>  flush  privileges			#修改表记录要更新一下
+
+	·例子3：撤销254主机 使用root
+	    mysql>  revoke all on *.* from 'root'@'192.168.4.254';
+
+
+
+     3.4 数据库服务器使用授权库存储授权信息
+	information_schema  ：虚拟库  不占用物理存储空间 数据存储在物理内存中，存储已有库和表的信息
+
+  **	mysql库 ：是授权库			：存储授权信息
+	主要的表： user			：存储授权用户的名及访问权限
+		  db				：存储授权用户对库的访问权限
+		  tables_priv		：存储授权用户对表的访问权限
+		  clomoun_priv		：存储授权用户对字段的访问权限
+
+
+
+     3.5 工作中如何授权
+	·给管理者授权
+	·给使用者授权
+	
+
+————————————————————划重点
+授权用户不是有授权权限就能够授权的。	
+授权用户的创建，用户信息会放在mysql库中，授权用户如果不能写入mysql库的权限，那么就算给了授权权限也无法创建用户。
+要同时对mysql库有insert权限才可以，且授权时的权限要小于等于自身权限。
+mysql
+
+
+
+
+_____________________________________________________________________________
+——————————————————————————————————————————————————————————
+
+
+4月28号   day05
+
+
+						数据备份与恢复
+一、数据备份相关概念
+    1.1 数据备份的目的： 数据被误删除 或设备损坏导致数据丢失，是备份文件恢复数据。
+
+    1.2 数据备份的方式？
+	物理备份：指定备份库和表对应的文件
+		cp -r /var/lib/mysql  /opt/mysql.bak		#备份
+		rm -rf /var/lib/mysql  				#误删
+		cp -r /opt/mysql.bak  /var/lib/mysql		#拷贝
+		chown -R mysql:mysql  /var/lib/mysql		#所有者和所属组为mysql
+		systemctl restart mysqld.sevice			#重启服务
+		
+
+	逻辑备份：在执行备份命令时，根据备份的库和表及数据生成对应的sql命令，把sql存储到指定的文件里。
+		
+
+    1.3 数据备份的策略？
+	完全备份 ： 备份所有数据（一张表的所有数据  一个库的所有数据  一台数据库服务器的所有数据）
+	
+	备份新产生的数据：（差异备份 和 增量备份  都备份新产生的数据）
+		差异备份：备份自完全备份后，所有新产生的数据。
+		增量备份：备份自上次备份后，所有新产生的数据。
+
+
+    1.4 工作中如何对数据做备份？
+	·选择备份策略：
+	    a).完全备份+差异备份（冗余备份）
+			  06:00 	t1		文件名		数据
+		1 完全			10条记录	1.sql		10
+		2 差异			3		2.sql		3
+		3			5		3.sql		8
+		4			2		4.sql		10
+		5			7		5.sql		17
+		6			4		6.sql		21
+		7 差异			1		7.sql		22
+
+	    b).完全备份+增量备份（用得最多）
+			  06:00 	t1		文件名		数据
+		1 完全			10条记录	1.sql		10
+		2 增量			3		2.sql		3
+		3			5		3.sql		5
+		4			2		4.sql		2
+		5			7		5.sql		7
+		6			4		6.sql		4
+		7 增量			1		7.sql		1
+
+
+	·数据备份时间
+		数据服务器访问量少的时候执行备份
+	
+	·数据备份周期（频率）
+		根据数据产生量决定备份频率
+
+	·备份文件的命名
+		库名-日期.sql
+
+	·备份文件的存储设置
+		准备独立的存储设备存储备份文件
+
+	·如何执行备份
+		使用周期性计划任务cron执行备份脚本
+
+
+
+
+二、完全备份与完全恢复
+
+    2.1 完全备份数据的命令：
+		man  mysqldump
+		mysqldump -uroot  -p密码   数据库名a  > 目录名/文件名.sql		
+
+  **  数据库名的表示方式：
+	*备份一张表的所有数据：		   mysqldump 库名  表名
+	*备份一个库的所有数据：		   mysqldump 库名
+	*备份一台数据库服务器的所有数据：  mysqldump --all-databases 或 mysqldump -A
+	*把多个库的所有数据备份到一个文件里：
+		mysqldump -B 库名1 库名2 库名N （一般不会这样用，一恢复旧所有的都恢复了）	
+
+	·例子a:
+		mysqldump -uroot -p密码 db3 user3 > 目录/db3-user3.sql
+			#备份db3库中的user3表的数据  备份名为db3-user3.sql
+		cat 目录/db3-user3.sql
+		mysqldump -uroot -p密码 studb > 目录/studb.sql
+			#备份studb库的所有数据
+		cat 目录/studb.sql
+
+	
+
+    2.2 完全恢复数据的命令：
+		mysql -uroot -p密码  数据库名a  < 目录名/文件名.sql
+
+	·例子b:
+		mysql -uroot -p密码  studb < 目录/studb.sql
+
+	·使用source 命令恢复数据
+		mysql>  create database  bbsdb;		
+		mysql>  use bbsdb;				#进入库
+		mysql>  source 目录/studb.sql		#手动恢复studb库的备份到bbsdb库下
+
+	·例子c：每周一晚上18：00备份studb库的所有数据到本机的/dbbak目录下，使用文件名 日期_库名.sql
+		vim /root/bakstudb.sh
+		#!/bin/bash
+		day=`date +%F`
+		if [ ! -e /dbbak ];then
+		        mkdir /dbbak
+		fi
+		mysqldump -uroot -p123456 studb > /dbbak/${day}_studb.sql
+		:wq
+		chmod +x /root/bakstudb.sh
+		crontab -e
+		00 18 * * 1 /root/bakstudb.sh &> /dev/null
+		:wq
+
+
+    2.3 完全备份的缺点：
+	a).备份和恢复数据时会给表加写锁
+	b).使用完全备份文件恢复数据，只能把数据恢复到备份时后的状态。完全备份后新写入的数据无法恢复
+	c).使用完全备份恢复
+	d).写入的数据无法恢复
+
+
+
+
+三、增量备份与增量恢复
+
+    3.1 启动mysql数据库服务的binlog日志文件，实现实时增量备份
+	a).binlog日志
+		是mysql数据库服务日志文件的一种，默认没有启用。
+		记录除查询之外的sql命令。
+		查询命令例如： select  show  desc
+		写命令例如  ： insert  update  delete  create  drop
+
+	b).启用binlog日志
+		vim /etc/my.cnf
+		[mysqld]
+		server_id=51
+		log-bin
+		binlog-format="mixed"
+		:wq
+		systemctl restart mysqld.sevice
+		ls /var/lib/mysql/主机名-bin.000001		#binlog日志
+		cat /var/lib/mysql/mysql51-bin.index		#看binlog日志有那些文件
+
+	*****a可以自定义binlog日志文件存储的位置和文件名称a********
+		mkdir /mylog
+		chown mysql  /mylog
+		vim /etc/my.cnf
+		[mysqld]
+		server_id=51
+		log-bin=/mylog/ldj
+		binlog-format="mixed"
+		:wq
+		systemctl restart mysqld.service
+		ls  /mylog/ldj.*
+
+
+	c).查看binlog日志文件内容
+		mysqlbinlog /var/lib/mysql/mysql51-bin.000001 
+
+
+	d).手动生成新的日志文件的方法
+	  *a 默认日志文件大于500M时会自动创建新日志文件
+		systemctl  restart  mysqld.service
+		mysql>  flush logs; 				#在mysql里执行生成日志文件
+		mysql -uroot -p密码  -e "flush logs" 		#在命令行下执行生成日志文件
+		mysqldump -uroot -p123456 --flush-logs  db3 user3 > /opt/db3-user3.sql
+
+
+
+
+	e).删除已有的binlog日志文件
+
+	f).binlog日志记录sql命令方式
+
+	g).使用binlog日志恢复数据
+
+
+
+    3.2 安装第3方软件提供的备份命令，对数据做增量备份
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
